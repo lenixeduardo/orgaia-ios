@@ -1,0 +1,46 @@
+name: Bootstrap OrgaIA source
+on:
+  push:
+    paths:
+      - '.bootstrap/orgaia-source.tar.br'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify source bundle integrity
+        run: echo "f4c1c83717541687211c3384ce108b61a4efc5b3e91807b39686456bec940b3b  .bootstrap/orgaia-source.tar.br" | sha256sum -c -
+      - name: Expand versioned sources
+        run: |
+          python3 -m pip install --user brotli
+          python3 - <<'PY'
+          import io
+          import pathlib
+          import tarfile
+          import brotli
+
+          payload = pathlib.Path('.bootstrap/orgaia-source.tar.br').read_bytes()
+          data = brotli.decompress(payload)
+          with tarfile.open(fileobj=io.BytesIO(data), mode='r:') as archive:
+              for member in archive.getmembers():
+                  path = pathlib.PurePosixPath(member.name)
+                  if path.is_absolute() or '..' in path.parts or not member.isfile():
+                      raise RuntimeError(f'Unexpected archive member: {member.name}')
+              archive.extractall('.')
+          pathlib.Path('.bootstrap/orgaia-source.tar.br').unlink()
+          pathlib.Path('.github/workflows/bootstrap.yml').unlink()
+          pathlib.Path('.bootstrap').rmdir()
+          PY
+      - name: Commit project sources
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: publish OrgaIA iOS MVP, Share Extension and CI"
+          git push origin HEAD:main
