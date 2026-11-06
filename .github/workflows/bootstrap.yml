@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.bootstrap/orgaia-source.tar.br'
+      - '.github/workflows/bootstrap.yml'
   workflow_dispatch:
 
 permissions:
@@ -27,10 +28,17 @@ jobs:
           payload = pathlib.Path('.bootstrap/orgaia-source.tar.br').read_bytes()
           data = brotli.decompress(payload)
           with tarfile.open(fileobj=io.BytesIO(data), mode='r:') as archive:
+              root = pathlib.Path.cwd().resolve()
               for member in archive.getmembers():
                   path = pathlib.PurePosixPath(member.name)
-                  if path.is_absolute() or '..' in path.parts or not member.isfile():
-                      raise RuntimeError(f'Unexpected archive member: {member.name}')
+                  if path.is_absolute() or '..' in path.parts:
+                      raise RuntimeError(f'Unsafe archive path: {member.name}')
+                  if member.issym():
+                      target = (root / path.parent / member.linkname).resolve()
+                      if not target.is_relative_to(root):
+                          raise RuntimeError(f'Unsafe symlink target: {member.name}')
+                  elif not member.isfile():
+                      raise RuntimeError(f'Unexpected archive member type: {member.name}')
               archive.extractall('.')
           pathlib.Path('.bootstrap/orgaia-source.tar.br').unlink()
           pathlib.Path('.github/workflows/bootstrap.yml').unlink()
