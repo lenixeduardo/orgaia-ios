@@ -1,0 +1,61 @@
+name: OrgaIA — Swift core + iOS SDK validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core-linux:
+    name: Foundation & RuleEngine (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: SwiftPM unit tests (original production sources)
+        run: swift test --package-path Validation/Core
+
+  ios-simulator:
+    name: Xcode 27 / iOS Simulator
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm Apple SDK and simulator
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+          xcrun simctl list devices available
+      - name: Install XcodeGen on macOS
+        run: brew install xcodegen
+      - name: Generate .xcodeproj
+        run: xcodegen generate --spec project.yml
+      - name: Build with the real iOS Simulator SDK
+        run: |
+          set -o pipefail
+          xcodebuild -project OrgaIA.xcodeproj \
+            -scheme OrgaIA -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Run native XCTest on iPhone simulator
+        run: |
+          set -o pipefail
+          xcodebuild -project OrgaIA.xcodeproj \
+            -scheme OrgaIA -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath "$RUNNER_TEMP/OrgaIA.xcresult" \
+            test
+      - name: Save test report (even on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: orgaia-ios-xcresult
+          path: ${{ runner.temp }}/OrgaIA.xcresult
+          if-no-files-found: ignore
