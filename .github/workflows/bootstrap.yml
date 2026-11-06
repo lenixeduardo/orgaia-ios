@@ -48,6 +48,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mv .github/workflows/ios-validate.yml "$RUNNER_TEMP/orgaia-ios-validate.yml"
           git add -A
           git diff --cached --quiet && exit 0
           git commit -m "feat: publish OrgaIA iOS MVP, Share Extension and CI"
