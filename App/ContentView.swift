@@ -39,7 +39,16 @@ struct LibraryTab: View {
                     header
                     if !PhotoLibraryService.shared.canRead() { accessCard }
                     else {
-                        stats
+                        CollectionHero(photoID: store.ordered.first?.id)
+                        HStack {
+                            Text("Categorias")
+                                .font(.title3.bold())
+                            Spacer()
+                            Text("Fotos analisadas")
+                                .font(.caption)
+                                .foregroundStyle(OrgaColors.secondary)
+                        }
+                        CollectionGrid(model: model, store: store)
                         HStack(spacing: 10) {
                             Picker("Quantidade", selection: $scanSelection) {
                                 Text("100").tag(100)
@@ -58,25 +67,30 @@ struct LibraryTab: View {
                         .buttonStyle(.bordered)
                         .disabled(model.busy || store.readyToApply.isEmpty)
                         if model.busy { ProgressView(model.progress) }
-                        Text("Imagens identificadas")
-                            .font(.title3.bold())
-                        if store.ordered.isEmpty { ContentUnavailableView("Sem imagens analisadas", systemImage: "photo.badge.plus", description: Text("Toque em Analisar novas para classificar a galeria.")) }
-                        ForEach(store.ordered.prefix(200)) { record in
-                            PhotoRecordRow(record: record, model: model)
+                        stats
+                        if store.ordered.isEmpty {
+                            ContentUnavailableView("Nenhuma imagem analisada", systemImage: "photo.badge.plus",
+                                description: Text("Toque em Analisar novas para começar."))
+                        } else {
+                            Text("Imagens identificadas").font(.title3.bold())
+                            ForEach(store.ordered.prefix(200)) { record in
+                                PhotoRecordRow(record: record, model: model)
+                            }
                         }
                     }
                 }
                 .padding(18)
             }
+            .background(OrgaColors.background)
             .navigationTitle("OrgaIA")
         }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("Sua galeria, organizada por IA")
+            Text("Suas coleções")
                 .font(.title2.bold())
-            Text("Processamento no iPhone. Originais preservados.")
+            Text("Fotos organizadas por assunto, no seu iPhone.")
                 .foregroundStyle(.secondary)
                 .font(.subheadline)
         }
@@ -91,13 +105,13 @@ struct LibraryTab: View {
     }
     private func statCard(_ title: String, _ value: String, _ symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: symbol).foregroundStyle(.indigo)
+            Image(systemName: symbol).foregroundStyle(OrgaColors.primary)
             Text(value).font(.title2.bold())
             Text(title).font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color.indigo.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+        .background(OrgaColors.mint, in: RoundedRectangle(cornerRadius: 14))
     }
     private var accessCard: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -110,7 +124,7 @@ struct LibraryTab: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.indigo.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
+        .background(OrgaColors.mint, in: RoundedRectangle(cornerRadius: 16))
     }
 }
 
