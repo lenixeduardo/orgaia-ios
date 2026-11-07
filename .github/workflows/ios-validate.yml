@@ -40,6 +40,15 @@ jobs:
           "$RUNNER_TEMP/foteka-venv/bin/python" scripts/generate_brand_assets.py
       - name: Generate .xcodeproj
         run: xcodegen generate --spec project.yml
+      - name: Validate checked-in Share Extension and App Group configuration
+        run: |
+          set -euo pipefail
+          plutil -lint ShareExtension/Info.plist App/OrgaIA.entitlements ShareExtension/OrgaIAShare.entitlements
+          /usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' ShareExtension/Info.plist | grep -Fx "com.apple.share-services"
+          /usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPrincipalClass' ShareExtension/Info.plist | grep -Fx '$(PRODUCT_MODULE_NAME).ShareViewController'
+          /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' App/OrgaIA.entitlements | grep -Fx "group.br.com.orgaia.gallery"
+          /usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' ShareExtension/OrgaIAShare.entitlements | grep -Fx "group.br.com.orgaia.gallery"
+          echo "Share Extension metadata and App Groups survived XcodeGen"
       - name: Build with the real iOS Simulator SDK
         run: |
           set -o pipefail
