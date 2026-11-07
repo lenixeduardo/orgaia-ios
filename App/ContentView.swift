@@ -88,7 +88,8 @@ struct LibraryTab: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 10) { FotekaLayerMark() ; Text("Foteka").font(.title.bold()) }\n                    Text("Suas coleções")
+            HStack(spacing: 10) { FotekaLayerMark() ; Text("Foteka").font(.title.bold()) }
+            Text("Suas coleções")
                 .font(.title2.bold())
             Text("Fotos organizadas por assunto, no seu iPhone.")
                 .foregroundStyle(.secondary)
