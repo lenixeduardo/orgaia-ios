@@ -19,8 +19,9 @@ const START_RULES=[
 ];
 const TABS=[['galeria','Galeria','grid'],['revisao','Revisão','review'],['regras','Regras','sliders'],['ajustes','Ajustes','settings']];
 const DB_NAME='foteka-local-v1';
+const VISION_VERSION='mobileclip-s0-web-v1';
 let db;
-const state={tab:'galeria',filter:'all',search:'',photos:[],rules:[],processing:false,selected:null,storage:null};
+const state={tab:'galeria',filter:'all',search:'',photos:[],rules:[],processing:false,selected:null,storage:null,visionBusy:false,visionDone:0,visionTotal:0,visionMessage:'',visionError:''};
 const urls=new Map();
 const el=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -28,6 +29,7 @@ const icon=(name,cls='icon')=>`<svg class="${cls}" aria-hidden="true"><use href=
 const cat=id=>CATEGORIES.find(x=>x.id===id)||CATEGORIES[CATEGORIES.length-1];
 const count=id=>state.photos.filter(x=>x.category===id).length;
 const pending=()=>state.photos.filter(x=>!x.confirmed);
+const pendingVisual=()=>state.photos.filter(p=>!p.confirmed&&!p.manualCategory&&p.reason!=='Categoria ajustada manualmente'&&p.visionVersion!==VISION_VERSION);
 const photoCount=()=>state.photos.length;
 const fmtBytes=v=>v>=1024*1024?`${(v/1024/1024).toFixed(1)} MB`:`${Math.round(v/1024)} KB`;
 const dateFmt=x=>new Date(x).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
@@ -98,7 +100,11 @@ function classify(filename){
     const word=rule.keyword.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     if(word && text.includes(word))return {category:rule.category,reason:`Palavra-chave: ${rule.keyword}`};
   }
-  return {category:'outros',reason:'Nenhuma regra identificada'};
+  // Generic iPhone camera file names have no semantic information.
+  if(/^(img|dsc|pxl|photo|image)[-_ ]?(\\d{3,}|\\.(heic|heif|jpeg|jpg|png))/i.test(filename)){
+    return {category:'pessoal',reason:'Foto da câmera — provisória, precisa de IA visual'};
+  }
+  return {category:'outros',reason:'Análise visual pendente'};
 }
 function buildThumbnail(blob){
   return new Promise((resolve,reject)=>{
@@ -137,7 +143,7 @@ async function importFiles(fileList){
         id:crypto.randomUUID?crypto.randomUUID():`p-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         fingerprint,name:file.name,size:file.size,type:file.type,
         importedAt:Date.now(),modifiedAt:file.lastModified||Date.now(),
-        category,reason,confirmed:false,blob:file,thumbnail
+        category,reason,confirmed:false,visionVersion:null,manualCategory:false,blob:file,thumbnail
       };
       await dbPut('photos',item);
       state.photos.unshift(item);seen.add(fingerprint);added++;
@@ -145,6 +151,7 @@ async function importFiles(fileList){
   }
   state.processing=false;state.tab='galeria';state.filter='all';state.search='';render();
   toast(`${added} imagem(ns) importada(s)${skipped?` · ${skipped} ignorada(s)`:''}`);
+  if(added && localStorage.getItem('foteka-vision-consent')==='1')void startVisualAnalysis(true);
 }
 function navMarkup(mobile=false){
   return `<div class="${mobile?'bottom-items':'nav-list'}">${TABS.map(([id,label,symbol])=>`<button type="button" class="${mobile?'bottom-item':'nav-item'} ${state.tab===id?'active':''}" data-tab="${id}" aria-current="${state.tab===id?'page':'false'}">${icon(symbol)}<span>${label}</span>${id==='revisao'&&pending().length?`<span class="${mobile?'badge-dot':'count'}">${pending().length}</span>`:''}</button>`).join('')}</div>`;
@@ -174,6 +181,75 @@ function photoGallery(){
   if(!filtered.length)return `<div class="empty"><div class="empty-icon">${icon('image')}</div><h3>${photoCount()?'Nenhuma imagem encontrada':'Sua primeira coleção começa aqui'}</h3><p>${photoCount()?'Experimente outra busca ou selecione outra coleção.':'Escolha fotos no iPhone para começar a organizar suas imagens. Você decide quais arquivos compartilhar com o Foteka.'}</p><button type="button" class="button primary" data-action="import">${icon('plus')} Adicionar imagens</button></div>`;
   return `<div class="photo-grid">${filtered.map(photo=>`<button type="button" class="photo-tile" data-action="detail" data-id="${esc(photo.id)}" aria-label="Abrir ${esc(photo.name)}"><img loading="lazy" src="${urlFor(photo)}" alt=""><span class="photo-label">${esc(photo.name)}</span></button>`).join('')}</div>`;
 }
+
+function visualBanner(){
+  const left=pendingVisual().length,busy=state.visionBusy;
+  if(!left&&!busy&&!state.visionError)return '';
+  return `<section class="vision-banner" id="vision-panel" aria-label="Análise visual com IA">
+    <div class="vision-heading"><span class="vision-mark">${icon('sparkle')}</span><div>
+    <strong>${busy?'IA visual em execução':'Organize pelas próprias imagens'}</strong>
+    <small>${busy?`${state.visionDone} de ${state.visionTotal} analisadas`:`${left} fotos aguardam classificação visual`}</small></div></div>
+    ${busy?`<p id="vision-message" class="vision-help">${esc(state.visionMessage)}</p><progress class="vision-progress" value="${state.visionDone}" max="${Math.max(1,state.visionTotal)}"></progress>`:
+    `<p class="vision-help">A IA examina a imagem no iPhone, não apenas nomes como IMG_1234. Primeiro uso: download do modelo. Suas fotos não são enviadas.</p>
+    ${state.visionError?`<p class="vision-error">${esc(state.visionError)}</p>`:''}
+    <button type="button" class="button primary" data-action="visual-classify">${icon('sparkle')} Classificar com IA</button>`}
+  </section>`;
+}
+function updateVisionProgress(){
+  const message=el('vision-message');if(message)message.textContent=state.visionMessage;
+  const progress=el('vision-panel')?.querySelector('progress');
+  if(progress)progress.value=state.visionDone;
+}
+async function startVisualAnalysis(automatic=false){
+  if(state.visionBusy)return;
+  const items=pendingVisual();
+  if(!items.length){toast('Nenhuma foto aguardando IA visual');return}
+  if(localStorage.getItem('foteka-vision-consent')!=='1'){
+    if(automatic)return;
+    const ok=confirm('O Foteka precisa baixar um modelo de visão (pode consumir dezenas de MB) para classificar as fotos localmente, sem enviá-las para a nuvem. Continuar?');
+    if(!ok)return;
+    localStorage.setItem('foteka-vision-consent','1');
+  }
+  state.visionBusy=true;state.visionDone=0;state.visionTotal=items.length;
+  state.visionMessage='Preparando modelo visual…';state.visionError='';render();
+  try{
+    const {loadVisualClassifier,classifyImageVisual}=await import('/vision.js');
+    await loadVisualClassifier(p=>{state.visionMessage=p.detail||'Baixando modelo…';updateVisionProgress()});
+    let changed=0,errors=0;
+    for(const photo of items){
+      state.visionMessage=`Classificando ${state.visionDone+1}/${state.visionTotal}: ${photo.name}`;updateVisionProgress();
+      if(photo.confirmed||photo.manualCategory){state.visionDone++;continue}
+      try{
+        const result=await classifyImageVisual(photo.thumbnail||photo.blob);
+        const currentRule=classify(photo.name);
+        const ruleMatched=currentRule.reason.startsWith('Palavra-chave:');
+        const old=photo.category;
+        if(result.reliable&&(!ruleMatched||result.score>0.42))photo.category=result.category;
+        photo.reason=result.reliable?
+          (ruleMatched&&old===photo.category?`${currentRule.reason} · IA conferida`:result.reason):
+          (photo.category==='outros'?'IA incerta — escolha a categoria':'IA visual incerta — confirme a categoria');
+        photo.visionVersion=VISION_VERSION;
+        photo.visualScore=Math.round(result.score*1000)/1000;
+        if(old!==photo.category)changed++;
+        await dbPut('photos',photo);
+      }catch(error){
+        console.warn('Foteka: unreadable image',photo.name,error);errors++;
+        photo.visionVersion=VISION_VERSION;
+        photo.reason='Imagem não analisada pela IA — revise manualmente';
+        await dbPut('photos',photo);
+      }
+      state.visionDone++;updateVisionProgress();
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    if(errors)state.visionError=`${errors} imagem(ns) não puderam ser analisadas. Revise manualmente.`;
+    toast(`IA local concluída: ${changed} categorias atualizadas`);
+  }catch(error){
+    console.error('Foteka: visual model unavailable',error);
+    state.visionError='IA visual indisponível neste iPhone ou conexão. Tente novamente no Wi-Fi ou escolha as categorias na Revisão.';
+    toast('Modelo visual indisponível. Fotos preservadas.');
+  }finally{state.visionBusy=false;state.visionMessage='';render()}
+}
+
 function galleryView(){
   if(state.filter!=='all'){
     const c=cat(state.filter);
@@ -185,6 +261,7 @@ function galleryView(){
     <div class="hero-content"><div class="hero-kicker">Visual Collections</div><h2>Guarde o que<br>realmente importa.</h2><p>Escolha suas fotos, organize em coleções e mantenha tudo sob seu controle.</p><button class="hero-cta" type="button" data-action="import">${icon('plus')} Adicionar fotos ${icon('arrow')}</button></div>
     <div class="hero-art" aria-hidden="true"><div class="art-card a"></div><div class="art-card b"></div><div class="art-card c"></div></div>
   </section>
+  ${visualBanner()}
   <section class="stats-row" aria-label="Resumo da biblioteca">
     <div class="stat"><div class="stat-icon">${icon('image')}</div><div class="stat-copy"><strong>${photoCount()}</strong><small>Imagens</small></div></div>
     <div class="stat"><div class="stat-icon">${icon('review')}</div><div class="stat-copy"><strong>${pending().length}</strong><small>Revisar</small></div></div>
@@ -202,8 +279,8 @@ function categoryOptions(active){
 }
 function reviewView(){
   const items=pending();
-  return `${pageHeader('Organização local','Revisão','Confirme ou ajuste as sugestões antes de considerar as imagens organizadas.')}${items.length?`
-  <div class="privacy-strip" style="margin-bottom:20px">${icon('sparkle')}<span>As categorias são sugeridas pelas palavras-chave dos nomes dos arquivos e pelas suas regras; não são resultados de reconhecimento visual por IA.</span></div>
+  return `${pageHeader('Organização local','Revisão','Confirme ou ajuste as sugestões antes de considerar as imagens organizadas.')}${visualBanner()}${items.length?`
+  <div class="privacy-strip" style="margin-bottom:20px">${icon('sparkle')}<span>As categorias combinam regras por nome e IA visual local, quando ativada. Confira as sugestões antes de confirmar.</span></div>
   <div class="review-grid">${items.map(p=>`<article class="review-card">
     <div class="review-media"><img loading="lazy" src="${urlFor(p)}" alt="${esc(p.name)}"></div>
     <div class="review-body"><h3 title="${esc(p.name)}">${esc(p.name)}</h3><small>${esc(p.reason)}</small>
@@ -232,6 +309,12 @@ function settingsView(){
   return `${pageHeader('Seu espaço','Ajustes','Controle seus arquivos e a instalação do Foteka no iPhone.')}
   <div class="privacy-strip" style="margin-bottom:17px">${icon('lock')}<span><strong>Privacidade primeiro.</strong> As fotos importadas são armazenadas no navegador deste aparelho. O Foteka não envia imagens a servidores e não exige login.</span></div>
   <section class="panel">
+    <h3>Classificação com IA visual</h3>
+    <p>Baixe um modelo MobileCLIP para analisar imagens no próprio iPhone. Fotos não são enviadas ao servidor. Pode exigir Wi-Fi e memória disponível.</p>
+    <button type="button" class="button primary" data-action="visual-classify" ${state.visionBusy?'disabled':''}>${icon('sparkle')} Analisar fotos pendentes</button>
+    ${state.visionError?`<p class="vision-error">${esc(state.visionError)}</p>`:''}
+  </section>
+  <section class="panel">
     <h3>Biblioteca e privacidade</h3>
     <div class="setting-row"><span class="setting-icon">${icon('image')}</span><div><h3>Importar fotografias</h3><p>Selecione fotos ou imagens salvas no iPhone.</p></div><button class="button" data-action="import" type="button">Importar</button></div>
     <div class="setting-row"><span class="setting-icon">${icon('download')}</span><div><h3>Exportar índice</h3><p>Baixa um JSON com nomes, regras e categorias, sem cópia das fotos.</p></div><button class="button" data-action="export" type="button">Exportar</button></div>
@@ -242,7 +325,7 @@ function settingsView(){
     <p>${inStandalone?'O Foteka já está aberto como aplicativo da Tela de Início.':'No Safari do iPhone: toque no botão Compartilhar → Adicionar à Tela de Início → Adicionar. A primeira abertura precisa de conexão; depois a interface pode funcionar offline.'}</p>
     <div class="privacy-strip">${icon('phone')}<span>Não precisa de AltStore, conta de desenvolvedor nem assinatura Apple. Esta versão web não substitui a instalação do Foteka nativo em SwiftUI.</span></div>
   </section>
-  <p class="note">Versão web 1.0 · Visual Collections V2. A classificação atual usa regras por nomes de arquivos; não há leitura automática da biblioteca inteira, reconhecimento visual, OCR ou sincronização com iCloud. Para preservar imagens, mantenha os arquivos originais no Fotos ou Arquivos.</p>`;
+  <p class="note">Versão web 1.0 · Visual Collections V2. Após ativação, o modelo visual analisa as fotos no navegador. Não há leitura da Fototeca inteira, OCR ou sincronização com iCloud; resultados são sugestões. Para preservar imagens, mantenha os arquivos originais no Fotos ou Arquivos.</p>`;
 }
 function renderDetail(photo){
   if(!photo)return;
@@ -271,7 +354,7 @@ function toast(message){
 async function saveCategory(id,category){
   const photo=state.photos.find(p=>p.id===id);
   if(!photo||!CATEGORIES.some(c=>c.id===category))return;
-  photo.category=category;photo.confirmed=false;photo.reason='Categoria ajustada manualmente';
+  photo.category=category;photo.confirmed=false;photo.manualCategory=true;photo.reason='Categoria ajustada manualmente';
   await dbPut('photos',photo);
   render();
   if(el('photo-dialog').open)renderDetail(photo);
@@ -308,8 +391,9 @@ function exportIndex(){
 async function reclassifyPending(){
   let changed=0;
   for(const p of pending()){
+    if(p.manualCategory||p.reason==='Categoria ajustada manualmente')continue;
     const next=classify(p.name);
-    if(p.category!==next.category||p.reason!==next.reason){p.category=next.category;p.reason=next.reason;await dbPut('photos',p);changed++}
+    if(p.category!==next.category||p.reason!==next.reason){p.category=next.category;p.reason=next.reason;p.visionVersion=null;await dbPut('photos',p);changed++}
   }
   render();toast(`Sugestões atualizadas: ${changed}`);
 }
@@ -345,6 +429,7 @@ function setupEvents(){
           else toast('Esta opção não está disponível neste navegador');
           break;
         case 'reclassify':await reclassifyPending();break;
+        case 'visual-classify':await startVisualAnalysis(false);break;
         case 'remove-rule':
           if(confirm('Excluir esta regra de classificação?')){
             await dbDelete('rules',id);state.rules=state.rules.filter(x=>x.id!==id);render();toast('Regra removida');
