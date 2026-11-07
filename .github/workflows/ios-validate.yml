@@ -48,6 +48,23 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
             build
+      - name: Diagnose built Share Extension metadata
+        run: |
+          set -euo pipefail
+          SHARE_PLIST=$(find "$HOME/Library/Developer/Xcode/DerivedData" \
+            -path "*/Build/Products/Debug-iphonesimulator/OrgaIAShare.appex/Info.plist" \
+            -type f -print -quit)
+          if [ -z "$SHARE_PLIST" ]; then
+            echo "::error::OrgaIAShare.appex/Info.plist not found"
+            exit 1
+          fi
+          echo "Built extension Info.plist: $SHARE_PLIST"
+          plutil -lint "$SHARE_PLIST"
+          plutil -p "$SHARE_PLIST"
+          /usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$SHARE_PLIST" | grep -Fx "com.apple.share-services"
+          /usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPrincipalClass' "$SHARE_PLIST" | grep -Fx "OrgaIAShare.ShareViewController"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$SHARE_PLIST" | grep -Fx "XPC!"
+          echo "Share Extension metadata validated"
       - name: Run native XCTest on iPhone simulator
         run: |
           set -o pipefail

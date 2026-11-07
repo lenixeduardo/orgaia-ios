@@ -51,6 +51,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: br.com.orgaia.gallery.share
         PRODUCT_NAME: OrgaIAShare
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ShareExtension/Info.plist
         SKIP_INSTALL: YES
   OrgaIATests:
     type: bundle.unit-test
