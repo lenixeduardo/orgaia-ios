@@ -4,7 +4,7 @@ SwiftUI + PhotoKit + Vision (OCR/classificação) + Share Extension + App Intent
 
 > **Identidade:** Foteka V2 · Layer / Coleções. O repositório, os bundles e os targets mantêm os identificadores OrgaIA para compatibilidade. Para gerar o ícone do app: `python3 -m pip install cairosvg && python3 scripts/generate_brand_assets.py`. Veja [Brand/BRAND.md](Brand/BRAND.md).
 
-> **Status:** MVP com código-fonte e configuração XcodeGen. A lógica Swift Foundation foi verificada em Linux, mas o projeto **não foi compilado em Xcode/iPhone** neste ambiente (sem SDK Apple ou assinatura). Não é um IPA pronto para instalação.
+> **Status:** O núcleo Swift, o build para simulador e XCTest passaram no GitHub Actions. O build para iPhone físico sem assinatura é gerado pelo workflow [Foteka — iPhone device IPA](.github/workflows/ios-device-ipa.yml); a instalação exige assinatura para o dispositivo. Consulte [guia de instalação gratuita](Docs/INSTALL_IPHONE_FREE.md).
 
 ## Obter o projeto
 
@@ -19,7 +19,7 @@ xcodegen generate
 open OrgaIA.xcodeproj
 ```
 
-A configuração do SDK Apple acontece no GitHub Actions, ao executar o workflow **OrgaIA — Swift core + iOS SDK validation**, e não neste ambiente Linux. Builds nativos dependem da disponibilidade do executor macOS e do Xcode.
+A configuração do SDK Apple acontece no GitHub Actions, nos workflows **Foteka — Swift core + iOS SDK validation** e **Foteka — iPhone device IPA (unsigned)**, e não neste ambiente Linux. Builds nativos dependem da disponibilidade do executor macOS e do Xcode.
 
 ## Requisitos
 

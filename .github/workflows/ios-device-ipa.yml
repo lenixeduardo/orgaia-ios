@@ -1,0 +1,97 @@
+name: Foteka — iPhone device IPA (unsigned)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ios-device-ipa.yml'
+      - 'App/**'
+      - 'ShareExtension/**'
+      - 'Shared/**'
+      - 'Brand/**'
+      - 'scripts/generate_brand_assets.py'
+      - 'project.yml'
+      - 'project-sideload.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-device:
+    runs-on: xcode-27
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Apple device SDK
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Prepare XcodeGen and approved Foteka V2 icon
+        run: |
+          brew install xcodegen
+          python3 -m venv "$RUNNER_TEMP/foteka-venv"
+          "$RUNNER_TEMP/foteka-venv/bin/python" -m pip install --quiet cairosvg
+          "$RUNNER_TEMP/foteka-venv/bin/python" scripts/generate_brand_assets.py
+          xcodegen generate --spec project.yml
+          xcodegen generate --spec project-sideload.yml
+
+      - name: Build complete app for physical iPhone (unsigned)
+        run: |
+          set -euo pipefail
+          xcodebuild -project OrgaIA.xcodeproj \
+            -scheme OrgaIA -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/FotekaFullDerived" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+
+      - name: Build free Apple-ID variant for physical iPhone (unsigned)
+        run: |
+          set -euo pipefail
+          xcodebuild -project OrgaIAFree.xcodeproj \
+            -scheme OrgaIA -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/FotekaFreeDerived" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+
+      - name: Verify both device builds and package IPA files
+        run: |
+          set -euo pipefail
+          FULL="$RUNNER_TEMP/FotekaFullDerived/Build/Products/Release-iphoneos/OrgaIA.app"
+          FREE="$RUNNER_TEMP/FotekaFreeDerived/Build/Products/Release-iphoneos/OrgaIA.app"
+          test -f "$FULL/Info.plist"
+          test -f "$FREE/Info.plist"
+          test -d "$FULL/PlugIns/OrgaIAShare.appex"
+          test ! -e "$FREE/PlugIns/OrgaIAShare.appex"
+          /usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' \
+            "$FULL/PlugIns/OrgaIAShare.appex/Info.plist" | grep -Fx 'com.apple.share-services'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$FULL/Info.plist" | grep -Fx 'br.com.orgaia.gallery'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$FREE/Info.plist" | grep -Fx 'br.com.orgaia.gallery'
+          mkdir -p "$RUNNER_TEMP/FotekaDeviceIPAs"
+          for variant in Full Free; do
+            if [[ "$variant" == "Full" ]]; then APP="$FULL"; else APP="$FREE"; fi
+            STAGING="$RUNNER_TEMP/foteka-stage-$variant"
+            mkdir -p "$STAGING/Payload"
+            ditto "$APP" "$STAGING/Payload/OrgaIA.app"
+            (cd "$STAGING" && /usr/bin/zip -qry -y "$RUNNER_TEMP/FotekaDeviceIPAs/Foteka-$variant-unsigned.ipa" Payload)
+            unzip -tq "$RUNNER_TEMP/FotekaDeviceIPAs/Foteka-$variant-unsigned.ipa"
+          done
+          (cd "$RUNNER_TEMP/FotekaDeviceIPAs" && shasum -a 256 Foteka-*.ipa > SHA256SUMS.txt)
+          printf '%s\n' \
+            "These IPAs are NOT signed and cannot be installed by tapping them." \
+            "Free: without Share Extension or App Groups; sign using your own Apple ID." \
+            "Full: with Share Extension; requires provisioning for App Groups." \
+            "See Docs/INSTALL_IPHONE_FREE.md in the repository." \
+            > "$RUNNER_TEMP/FotekaDeviceIPAs/INSTALLATION.txt"
+          du -h "$RUNNER_TEMP/FotekaDeviceIPAs"/*.ipa
+
+      - name: Publish unsigned device IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Foteka-iPhone-unsigned-IPA
+          path: ${{ runner.temp }}/FotekaDeviceIPAs/
+          retention-days: 21
+          if-no-files-found: error

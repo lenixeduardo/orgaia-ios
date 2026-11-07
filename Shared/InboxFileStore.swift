@@ -20,9 +20,18 @@ enum InboxFileStore {
     static let allowedExtensions: Set<String> = ["jpg", "jpeg", "png", "heic", "heif", "webp", "gif", "tif", "tiff", "bmp"]
 
     static func directory() throws -> URL {
+        #if FOTEKA_FREE_SIDELOAD
+        // In the free Apple-ID build, App Groups and the Share Extension are excluded.
+        // App Intents can use the app's private support directory for local imports.
+        guard let base = FileManager.default.urls(for: .applicationSupportDirectory,
+                                                   in: .userDomainMask).first else {
+            throw InboxError.appGroupUnavailable
+        }
+        #else
         guard let base = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppConfig.groupID) else {
             throw InboxError.appGroupUnavailable
         }
+        #endif
         let folder = base.appendingPathComponent("Inbox", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         return folder
