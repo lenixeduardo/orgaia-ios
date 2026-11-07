@@ -41,3 +41,26 @@ test('A classificação visual não substitui revisão manual',()=>{
   assert.ok(model.includes("device:'wasm'"));
   assert.ok(!/fetch\((?:['"`]|photo)/.test(model),'no photo uploads');
 });
+
+test('Arquivos IMG_ do iPhone não caem automaticamente em Outros',()=>{
+  const code=get('app.js');
+  const fn=code.match(/function classify\\(filename\\)\\{[\\s\\S]*?\\n\\}/)?.[0];
+  assert.ok(fn,'função classify deve existir');
+  const rules=[
+    {keyword:'screenshot',category:'capturas'},
+    {keyword:'pikachu',category:'pokemon'}
+  ];
+  const classify=vm.runInNewContext(`${fn}; classify`,{state:{rules}});
+  const camera=classify('IMG_1234.HEIC');
+  assert.equal(camera.category,'pessoal');
+  assert.match(camera.reason,/provisória/);
+  assert.equal(classify('Screenshot_2026.png').category,'capturas');
+  assert.equal(classify('Pikachu_NM.png').category,'pokemon');
+  assert.equal(classify('arquivo-desconhecido.png').category,'outros');
+});
+test('Modelo de visão tem rótulos para todas as coleções',()=>{
+  const model=get('vision.js');
+  for(const label of ['pessoal','projetos','documentos','pokemon','compras','capturas','outros']){
+    assert.ok(model.includes(`['${label}',`),label);
+  }
+});
