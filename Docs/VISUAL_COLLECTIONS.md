@@ -1,10 +1,10 @@
-# OrgaIA — Visual Collections
+# Foteka — Visual Collections
 
-Status: **direção visual aprovada; especificação v1.0**. Os mockups são conceituais, não capturas da aplicação compilada. A implementação SwiftUI ainda utiliza a interface anterior.
+Status: **direção visual aprovada; especificação v1.1, identidade Foteka V2 · Layer / Coleções**. Os mockups são conceituais, não capturas da aplicação compilada. A implementação SwiftUI ainda utiliza a interface anterior.
 
 ## Objetivo
 
-A interface do OrgaIA deve organizar a galeria por assunto com mosaicos de fotografias, sem comprometer o fluxo existente de classificação local, revisão das sugestões, regras persistentes e importação por Compartilhar/Atalhos.
+A interface do Foteka deve organizar a galeria por assunto com mosaicos de fotografias, sem comprometer o fluxo existente de classificação local, revisão das sugestões, regras persistentes e importação por Compartilhar/Atalhos.
 
 ## Paleta
 
@@ -12,8 +12,8 @@ A interface do OrgaIA deve organizar a galeria por assunto com mosaicos de fotog
 | --- | --- | --- |
 | `background` | `#F8F7F3` | Base da tela |
 | `surface` | `#FFFEFC` | Listas, formulários e cartões |
-| `primary` | `#0B7177` | CTA, seleção e ícones ativos |
-| `primaryDark` | `#064F55` | Títulos e destaques |
+| `primary` | `#007B6E` | CTA, seleção e ícones ativos |
+| `primaryDark` | `#005750` | Títulos e destaques |
 | `mint` | `#E9F3F0` | Área de sugestão e feedback |
 | `textPrimary` | `#18333B` | Texto principal |
 | `textSecondary` | `#647678` | Metadados; contraste superior a 4,5:1 em superfície clara |

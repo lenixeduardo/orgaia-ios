@@ -5,8 +5,8 @@ import SwiftUI
 enum OrgaColors {
     static let background = Color(red: 248/255, green: 247/255, blue: 243/255)
     static let surface = Color(red: 255/255, green: 254/255, blue: 252/255)
-    static let primary = Color(red: 11/255, green: 113/255, blue: 119/255)
-    static let primaryDark = Color(red: 6/255, green: 79/255, blue: 85/255)
+    static let primary = Color(red: 0/255, green: 123/255, blue: 110/255)
+    static let primaryDark = Color(red: 0/255, green: 87/255, blue: 80/255)
     static let mint = Color(red: 233/255, green: 243/255, blue: 240/255)
     static let ink = Color(red: 24/255, green: 51/255, blue: 59/255)
     static let secondary = Color(red: 100/255, green: 118/255, blue: 120/255)

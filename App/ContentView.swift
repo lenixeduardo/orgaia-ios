@@ -88,7 +88,11 @@ struct LibraryTab: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 10) { FotekaLayerMark() ; Text("Foteka").font(.title.bold()) }
+            HStack(spacing: 10) {
+                FotekaLayerMark()
+                Text("Foteka")
+                    .font(.title.bold())
+            }
             Text("Suas coleções")
                 .font(.title2.bold())
             Text("Fotos organizadas por assunto, no seu iPhone.")
@@ -277,11 +281,11 @@ struct SettingsTab: View {
                         .disabled(model.busy)
                 }
                 Section("Importação") {
-                    Text("No Safari ou Arquivos: Compartilhar → OrgaIA. Em Atalhos: ação 'Enviar imagem para OrgaIA' com a entrada Arquivo ou Imagem.")
+                    Text("No Safari ou Arquivos: Compartilhar → Foteka. Em Atalhos: ação 'Enviar imagem para Foteka' com a entrada Arquivo ou Imagem.")
                     Text("Arquivos compartilhados ficam numa fila local até a próxima abertura do aplicativo.")
                 }
                 Section("Privacidade") {
-                    Text("Nenhuma imagem é enviada a um servidor. A IA usa Vision no próprio aparelho. As fotos originais são mantidas; somente álbuns OrgaIA são editados.")
+                    Text("Nenhuma imagem é enviada a um servidor. A IA usa Vision no próprio aparelho. As fotos originais são mantidas; somente álbuns Foteka são editados.")
                     Text("Fotos do iCloud não baixadas podem precisar de conexão ou download prévio para análise.")
                 }
             }

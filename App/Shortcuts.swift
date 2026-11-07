@@ -3,7 +3,7 @@ import AppIntents
 import UniformTypeIdentifiers
 
 struct QueueImageIntent: AppIntent {
-    static var title: LocalizedStringResource = "Enviar imagem para OrgaIA"
+    static var title: LocalizedStringResource = "Enviar imagem para Foteka"
     static var description = IntentDescription("Coloca uma imagem na fila local para ser classificada e organizada no Fotos quando o app for aberto.")
     static var openAppWhenRun: Bool = false
 
@@ -11,7 +11,7 @@ struct QueueImageIntent: AppIntent {
     var image: IntentFile
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Enviar \(\.$image) para OrgaIA")
+        Summary("Enviar \(\.$image) para Foteka")
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -19,7 +19,7 @@ struct QueueImageIntent: AppIntent {
             ?? URL(fileURLWithPath: image.filename).pathExtension.lowercased()
         let chosenExtension = fileExtension.isEmpty ? "jpeg" : fileExtension
         try InboxFileStore.enqueue(data: image.data, fileExtension: chosenExtension)
-        return .result(dialog: "Imagem recebida. Abra OrgaIA para importar e classificar.")
+        return .result(dialog: "Imagem recebida. Abra Foteka para importar e classificar.")
     }
 }
 

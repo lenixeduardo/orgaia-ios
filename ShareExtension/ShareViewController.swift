@@ -9,7 +9,7 @@ final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        status.text = "Recebendo imagens no OrgaIA…"
+        status.text = "Recebendo imagens no Foteka…"
         status.textAlignment = .center
         status.numberOfLines = 0
         status.font = .preferredFont(forTextStyle: .headline)
@@ -49,7 +49,7 @@ final class ShareViewController: UIViewController {
             }
             guard count > 0 else { throw InboxError.unsupportedType }
             indicator.stopAnimating()
-            status.text = "\(count) imagem(ns) enviada(s). Abra OrgaIA para organizar."
+            status.text = "\(count) imagem(ns) enviada(s). Abra Foteka para organizar."
             extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
         } catch {
             indicator.stopAnimating()
