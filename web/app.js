@@ -101,7 +101,7 @@ function classify(filename){
     if(word && text.includes(word))return {category:rule.category,reason:`Palavra-chave: ${rule.keyword}`};
   }
   // Generic iPhone camera file names have no semantic information.
-  if(/^(img|dsc|pxl|photo|image)[-_ ]?(\\d{3,}|\\.(heic|heif|jpeg|jpg|png))/i.test(filename)){
+  if(/^(img|dsc|pxl|photo|image)[-_ ]?(\d{3,}|\.(heic|heif|jpeg|jpg|png))/i.test(filename)){
     return {category:'pessoal',reason:'Foto da câmera — provisória, precisa de IA visual'};
   }
   return {category:'outros',reason:'Análise visual pendente'};
