@@ -1,4 +1,4 @@
-name: OrgaIA — Swift core + iOS SDK validation
+name: Foteka — Swift core + iOS SDK validation
 
 on:
   push:
@@ -33,6 +33,11 @@ jobs:
           xcrun simctl list devices available
       - name: Install XcodeGen on macOS
         run: brew install xcodegen
+      - name: Generate Foteka V2 app icon
+        run: |
+          python3 -m venv "$RUNNER_TEMP/foteka-venv"
+          "$RUNNER_TEMP/foteka-venv/bin/python" -m pip install --quiet cairosvg
+          "$RUNNER_TEMP/foteka-venv/bin/python" scripts/generate_brand_assets.py
       - name: Generate .xcodeproj
         run: xcodegen generate --spec project.yml
       - name: Build with the real iOS Simulator SDK
@@ -59,3 +64,28 @@ jobs:
           name: orgaia-ios-xcresult
           path: ${{ runner.temp }}/OrgaIA.xcresult
           if-no-files-found: ignore
+
+  brand-assets:
+    name: Materialize approved Foteka V2 icon
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render the 1024px icon
+        run: |
+          python3 -m venv "$RUNNER_TEMP/foteka-venv"
+          "$RUNNER_TEMP/foteka-venv/bin/python" -m pip install --quiet cairosvg
+          "$RUNNER_TEMP/foteka-venv/bin/python" scripts/generate_brand_assets.py
+      - name: Publish generated iOS assets only if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App/Assets.xcassets/AppIcon.appiconset
+          if git diff --cached --quiet; then
+            echo "Icon assets already up to date"
+          else
+            git commit -m "assets: materialize Foteka V2 iOS app icon"
+            git push origin HEAD:main
+          fi

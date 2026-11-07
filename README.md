@@ -1,6 +1,8 @@
-# OrgaIA — MVP nativo iOS
+# Foteka — Visual Collections (MVP iOS)
 
 SwiftUI + PhotoKit + Vision (OCR/classificação) + Share Extension + App Intents/Atalhos.
+
+> **Identidade:** Foteka V2 · Layer / Coleções. O repositório, os bundles e os targets mantêm os identificadores OrgaIA para compatibilidade. Para gerar o ícone do app: `python3 -m pip install cairosvg && python3 scripts/generate_brand_assets.py`. Veja [Brand/BRAND.md](Brand/BRAND.md).
 
 > **Status:** MVP com código-fonte e configuração XcodeGen. A lógica Swift Foundation foi verificada em Linux, mas o projeto **não foi compilado em Xcode/iPhone** neste ambiente (sem SDK Apple ou assinatura). Não é um IPA pronto para instalação.
 

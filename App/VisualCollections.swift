@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Visual Collections: primary presentation style approved for OrgaIA.
+// Visual Collections: primary presentation style approved for Foteka.
 // Real PhotoKit thumbnails are used only when the user grants photo access.
 enum OrgaColors {
     static let background = Color(red: 248/255, green: 247/255, blue: 243/255)
@@ -131,5 +131,43 @@ struct CollectionDetailView: View {
         }
         .background(OrgaColors.background)
         .navigationTitle(category.title)
+    }
+}
+
+ 
+/// Compact, fully vector-drawn V2 layered-photograph mark.
+struct FotekaLayerMark: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(red: 0.05, green: 0.84, blue: 0.72))
+                .frame(width: 30, height: 30)
+                .rotationEffect(.degrees(-14))
+                .offset(x: -4, y: -4)
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(red: 0.03, green: 0.62, blue: 0.55))
+                .frame(width: 30, height: 30)
+                .rotationEffect(.degrees(-7))
+                .offset(x: -2, y: -2)
+            RoundedRectangle(cornerRadius: 8)
+                .fill(LinearGradient(
+                    colors: [OrgaColors.primary, OrgaColors.primaryDark, Color.green],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                ))
+                .frame(width: 30, height: 30)
+            Path { path in
+                path.move(to: CGPoint(x: 7, y: 27))
+                path.addLine(to: CGPoint(x: 13, y: 20))
+                path.addLine(to: CGPoint(x: 18, y: 24))
+                path.addLine(to: CGPoint(x: 23, y: 18))
+                path.addLine(to: CGPoint(x: 31, y: 27))
+            }
+            .stroke(.white, style: StrokeStyle(lineWidth: 2.2,
+                                               lineCap: .round, lineJoin: .round))
+            Circle().fill(.white).frame(width: 4.5, height: 4.5)
+                .offset(x: 8.3, y: -7.2)
+        }
+        .frame(width: 40, height: 40)
+        .accessibilityHidden(true)
     }
 }

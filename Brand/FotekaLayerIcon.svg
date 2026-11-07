@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+ <defs>
+  <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F3FFFC"/><stop offset="1" stop-color="#E8F5EF"/></linearGradient>
+  <linearGradient id="back2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#11D7B8"/><stop offset=".7" stop-color="#018B86"/><stop offset="1" stop-color="#78DD2C"/></linearGradient>
+  <linearGradient id="back1" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3DF4CC"/><stop offset=".65" stop-color="#047E78"/><stop offset="1" stop-color="#49CA3A"/></linearGradient>
+  <linearGradient id="face" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="#00AE9C"/><stop offset=".43" stop-color="#005750"/><stop offset=".73" stop-color="#006453"/><stop offset="1" stop-color="#78DD2C"/></linearGradient>
+  <linearGradient id="border" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="#fff" stop-opacity=".08"/></linearGradient>
+  <filter id="shadow" x="-35%" y="-35%" width="170%" height="175%"><feDropShadow dx="0" dy="26" stdDeviation="25" flood-color="#014342" flood-opacity=".26"/></filter>
+ </defs>
+ <rect width="1024" height="1024" fill="url(#canvas)"/>
+ <g filter="url(#shadow)">
+  <g transform="rotate(-14 447 466)"><rect x="171" y="137" width="576" height="608" rx="119" fill="url(#back2)"/><rect x="187" y="152" width="544" height="575" rx="111" fill="none" stroke="url(#border)" stroke-width="6"/></g>
+  <g transform="rotate(-7 480 498)"><rect x="205" y="174" width="594" height="606" rx="119" fill="url(#back1)"/><rect x="219" y="189" width="565" height="575" rx="111" fill="none" stroke="url(#border)" stroke-width="6"/></g>
+  <rect x="262" y="240" width="605" height="604" rx="124" fill="url(#face)"/>
+  <rect x="276" y="253" width="578" height="576" rx="112" fill="none" stroke="url(#border)" stroke-width="5"/>
+ </g>
+ <path d="M346 695 L454 563 L521 624 L603 533 L773 696 M346 695 H773" stroke="#fff" stroke-width="42" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+ <circle cx="695" cy="402" r="39" fill="#fff"/>
+</svg>

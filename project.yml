@@ -26,8 +26,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: br.com.orgaia.gallery
         PRODUCT_NAME: OrgaIA
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: OrgaIA
+        INFOPLIST_KEY_CFBundleDisplayName: Foteka
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "Organizar suas fotos localmente com IA e criar álbuns sem alterar os originais."
         INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "Importar imagens compartilhadas para organizar em álbuns."

@@ -20,7 +20,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active { Task { await model.onActive() } }
         }
-        .alert("OrgaIA", isPresented: Binding(get: { model.errorMessage != nil },
+        .alert("Foteka", isPresented: Binding(get: { model.errorMessage != nil },
                                                set: { if !$0 { model.errorMessage = nil } })) {
             Button("OK") { model.errorMessage = nil }
         } message: { Text(model.errorMessage ?? "") }
@@ -82,13 +82,13 @@ struct LibraryTab: View {
                 .padding(18)
             }
             .background(OrgaColors.background)
-            .navigationTitle("OrgaIA")
+            .navigationTitle("Foteka")
         }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("Suas coleções")
+            HStack(spacing: 10) { FotekaLayerMark() ; Text("Foteka").font(.title.bold()) }\n                    Text("Suas coleções")
                 .font(.title2.bold())
             Text("Fotos organizadas por assunto, no seu iPhone.")
                 .foregroundStyle(.secondary)
