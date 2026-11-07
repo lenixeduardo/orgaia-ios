@@ -44,7 +44,9 @@ test('A classificação visual não substitui revisão manual',()=>{
 
 test('Arquivos IMG_ do iPhone não caem automaticamente em Outros',()=>{
   const code=get('app.js');
-  const fn=code.match(/function classify\\(filename\\)\\{[\\s\\S]*?\\n\\}/)?.[0];
+  const begin=code.indexOf('function classify(filename){');
+  const end=code.indexOf('function buildThumbnail',begin);
+  const fn=begin>=0 && end>begin ? code.slice(begin,end) : '';
   assert.ok(fn,'função classify deve existir');
   const rules=[
     {keyword:'screenshot',category:'capturas'},
