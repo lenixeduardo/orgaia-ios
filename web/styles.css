@@ -217,3 +217,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
   .hero-art{right:-95px}
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+
+/* In-browser image classification: restrained Visual Collections styling */
+.vision-banner{display:flex;flex-direction:column;gap:12px;padding:20px 23px;border:1px solid #c7e8d7;border-radius:20px;background:linear-gradient(125deg,#e6f8ed,#f8fff3);margin:0 0 22px}
+.vision-heading{display:flex;align-items:center;gap:12px}
+.vision-heading strong{display:block;font-weight:790;font-size:15px;letter-spacing:-.2px}
+.vision-heading small{display:block;font-size:12px;color:#52776a;margin-top:4px}
+.vision-mark{width:40px;height:40px;background:#d0eed9;border-radius:13px;display:grid;place-items:center;color:#007b6e;flex:none}
+.vision-banner .button{align-self:flex-start}
+.vision-help{font-size:12px;color:#3c6959;line-height:1.65;margin:0;max-width:680px}
+.vision-error{font-size:12px;color:#a52d2d;line-height:1.5;margin:4px 0}
+.vision-progress{height:8px;width:100%;max-width:610px;border:0;border-radius:99px;accent-color:#007b6e}
+.vision-progress::-webkit-progress-bar{background:#d4eadc;border-radius:99px}
+.vision-progress::-webkit-progress-value{background:#007b6e;border-radius:99px}
+@media(max-width:680px){.vision-banner{padding:17px;border-radius:18px}.vision-banner .button{width:100%}}

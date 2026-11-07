@@ -17,6 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check JavaScript syntax
-        run: node --check web/app.js && node --check web/sw.js
+        run: node --check web/app.js && node --check web/sw.js && node --check web/vision.js
       - name: Run Foteka web smoke tests
         run: node --test web/tests/web-smoke.test.mjs
