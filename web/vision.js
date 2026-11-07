@@ -2,7 +2,7 @@
 // Downloads an open vision model on first use. Images are processed in the browser
 // and NEVER uploaded to Hugging Face, Vercel, or an application backend.
 // MobileCLIP model card: https://huggingface.co/Xenova/mobileclip_s0
-export const VISION_VERSION='mobileclip-s0-web-v1';
+export const VISION_VERSION='mobileclip-s0-web-v2';
 
 const MODEL_ID='Xenova/mobileclip_s0';
 const PACKAGE_URL='https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
@@ -62,20 +62,24 @@ export async function classifyImageVisual(blob,onProgress){
     const scores=await model(image,LABELS,{hypothesis_template:'{}'});
     const ordered=(Array.isArray(scores)?scores:[scores]).filter(s=>Number.isFinite(s?.score)).sort((a,b)=>b.score-a.score);
     if(!ordered.length)throw new Error('O modelo não retornou uma classificação');
-    const best=ordered[0];
-    const index=LABELS.indexOf(best.label);
-    const category=index>=0?PROMPTS[index][0]:'outros';
-    // CLIP scores are relative similarities across the prompts, not calibrated
-    // category accuracy. Weak matches are explicitly flagged for review.
-    return {
-      category,
-      score:best.score,
-      label:best.label,
-      reliable:best.score>=0.14,
-      reason:best.score>=0.14
-        ?'IA visual local · sugestão para revisão'
-        :'IA visual local · correspondência fraca, revisar'
-    };
+    const byCategory=new Map();
+    for(const row of ordered){
+      const idx=LABELS.indexOf(row.label);
+      if(idx<0)continue;
+      const category=PROMPTS[idx][0];
+      const previous=byCategory.get(category);
+      if(!previous||row.score>previous.score)byCategory.set(category,row);
+    }
+    const ranking=[...byCategory.entries()].sort((a,b)=>b[1].score-a[1].score);
+    if(!ranking.length)throw new Error('Categorias visuais indisponíveis');
+    const [[category,best],second]=ranking;
+    const nextScore=second?.[1]?.score??0;
+    // A CLIP score measures relative similarity, not calibrated accuracy.
+    // An uncertain prediction is kept "Aguardando análise", NOT "Outros".
+    const reliable=best.score>=0.17 &&
+      (best.score-nextScore>=0.055 || best.score>=nextScore*1.6);
+    return {category,score:best.score,label:best.label,reliable,
+      reason:reliable?'Sugestão visual · revisar':'Análise incerta · escolher categoria'};
   }finally{URL.revokeObjectURL(objectUrl)}
 }
 export const visualModelInfo={name:'MobileCLIP S0',id:MODEL_ID,version:VISION_VERSION,labels:PROMPTS.length};

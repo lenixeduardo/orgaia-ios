@@ -8,9 +8,9 @@ A versão PWA do Foteka funciona no Safari e pode ser adicionada à Tela de Iní
 
 - Importação manual de imagens pelo seletor de arquivos e Fototeca do Safari.
 - Galeria Visual Collections com mosaicos, miniaturas reais, busca e coleções.
-- Revisão de cada imagem com confirmação/edição da categoria.
+- Revisão de cada imagem, com casos incertos separados da categoria Outros.
 - **IA visual opcional no próprio navegador**, com MobileCLIP S0 via Transformers.js para sugerir categorias analisando os pixels. Primeiro uso baixa um modelo; no iPhone pode consumir dezenas de MB e memória. Se o modelo falhar, classificação por regras e revisão manual continuam disponíveis.
-- Regras de nome de arquivo personalizáveis como complemento e prioridade para nomes explícitos.
+- A classificação automática não usa nomes. Fotos aguardam análise visual até o modelo ou uma pessoa classificá-las.
 - Armazenamento IndexedDB **no próprio navegador** de arquivos e miniaturas.
 - Download individual do original importado, exclusão de cópias, exportação dos metadados (JSON), tentativa de armazenamento persistente.
 - PWA com service worker e interface utilizável offline após o primeiro carregamento, sujeito às políticas de armazenamento e cache do Safari.
@@ -45,3 +45,7 @@ Não há dependências de runtime nem coleta de dados. Os arquivos estáticos s�
 - `manifest.webmanifest`: instalação PWA;
 - `sw.js`: cache offline do shell;
 - `apple-touch-icon.png`: ícone V2.
+
+## Correção da classificação por nome automático
+
+Fotos cujo nome é gerado pelo iPhone, como IMG_1234.HEIC, não recebem uma categoria com base nisso. Imagens ainda não analisadas ficam em **Aguardando análise**, separadas de **Outros**. Sugestões antigas não confirmadas são reclassificadas pela IA após sua autorização; decisões manuais ou já confirmadas são preservadas.

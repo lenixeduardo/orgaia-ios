@@ -42,23 +42,22 @@ test('A classificação visual não substitui revisão manual',()=>{
   assert.ok(!/fetch\((?:['"`]|photo)/.test(model),'no photo uploads');
 });
 
-test('Arquivos IMG_ do iPhone não caem automaticamente em Outros',()=>{
+test('Nomes de arquivos não são usados para categorizar',()=>{
   const code=get('app.js');
-  const begin=code.indexOf('function classify(filename){');
-  const end=code.indexOf('function buildThumbnail',begin);
-  const fn=begin>=0 && end>begin ? code.slice(begin,end) : '';
-  assert.ok(fn,'função classify deve existir');
-  const rules=[
-    {keyword:'screenshot',category:'capturas'},
-    {keyword:'pikachu',category:'pokemon'}
-  ];
-  const classify=vm.runInNewContext(`${fn}; classify`,{state:{rules}});
-  const camera=classify('IMG_1234.HEIC');
-  assert.equal(camera.category,'pessoal');
-  assert.match(camera.reason,/provisória/);
-  assert.equal(classify('Screenshot_2026.png').category,'capturas');
-  assert.equal(classify('Pikachu_NM.png').category,'pokemon');
-  assert.equal(classify('arquivo-desconhecido.png').category,'outros');
+  const from=code.indexOf('function classify(){'),to=code.indexOf('function buildThumbnail',from);
+  assert.ok(from>=0&&to>from);
+  const classify=vm.runInNewContext(`${code.slice(from,to)};classify`);
+  assert.equal(classify().category,'pendente');
+  assert.ok(code.includes('const {category,reason}=classify();'));
+  assert.ok(!code.includes('classify(file.name)'));
+  assert.ok(!code.includes('Palavra-chave:'));
+});
+test('A revisão manual e casos incertos ficam protegidos',()=>{
+  const app=get('app.js');
+  assert.ok(app.includes("photo.confirmed||photo.manualCategory"));
+  assert.ok(app.includes("if(p.category==='pendente')"));
+  assert.ok(app.includes('photo.suggestedCategory=result.category'));
+  assert.ok(app.includes('Reanalisar imagens não confirmadas'));
 });
 test('Modelo de visão tem rótulos para todas as coleções',()=>{
   const model=get('vision.js');

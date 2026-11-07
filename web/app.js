@@ -1,6 +1,7 @@
 // Foteka Web: private, browser-local Visual Collections.
 // No photo content is transmitted to a server. Safari selects images explicitly.
 const CATEGORIES=[
+  {id:'pendente',name:'Aguardando análise',icon:'review',a:'#91aba5',b:'#567470'},
   {id:'pessoal',name:'Fotos pessoais',icon:'image',a:'#6aa7b0',b:'#315a78'},
   {id:'projetos',name:'Projetos',icon:'folder',a:'#74ad91',b:'#285f58'},
   {id:'documentos',name:'Documentos',icon:'doc',a:'#aaa9ad',b:'#64728a'},
@@ -9,17 +10,9 @@ const CATEGORIES=[
   {id:'capturas',name:'Capturas de tela',icon:'phone',a:'#99a1bd',b:'#596583'},
   {id:'outros',name:'Outros',icon:'image',a:'#a2bdb5',b:'#647b78'}
 ];
-const START_RULES=[
-  ['pokemon','pokemon'],['pikachu','pokemon'],['charizard','pokemon'],['tcg','pokemon'],['card','pokemon'],
-  ['screenshot','capturas'],['captura','capturas'],['print','capturas'],
-  ['recibo','documentos'],['documento','documentos'],['pdf','documentos'],['contrato','documentos'],
-  ['projeto','projetos'],['codigo','projetos'],['design','projetos'],
-  ['pedido','compras'],['compra','compras'],['nota fiscal','compras'],
-  ['familia','pessoal'],['viagem','pessoal'],['amigos','pessoal']
-];
-const TABS=[['galeria','Galeria','grid'],['revisao','Revisão','review'],['regras','Regras','sliders'],['ajustes','Ajustes','settings']];
+const TABS=[['galeria','Galeria','grid'],['revisao','Revisão','review'],['regras','IA visual','sparkle'],['ajustes','Ajustes','settings']];
 const DB_NAME='foteka-local-v1';
-const VISION_VERSION='mobileclip-s0-web-v1';
+const VISION_VERSION='mobileclip-s0-web-v2';
 let db;
 const state={tab:'galeria',filter:'all',search:'',photos:[],rules:[],processing:false,selected:null,storage:null,visionBusy:false,visionDone:0,visionTotal:0,visionMessage:'',visionError:''};
 const urls=new Map();
@@ -65,13 +58,14 @@ async function initialize(){
   try{
     db=await openDatabase();
     state.photos=(await dbAll('photos')).sort((a,b)=>b.importedAt-a.importedAt);
-    state.rules=await dbAll('rules');
-    if(!state.rules.length && localStorage.getItem('foteka-rules-initialized')!=='1'){
-      for(const [keyword,category] of START_RULES){
-        const rule={id:'builtin-'+keyword,keyword,category,builtin:true};
-        await dbPut('rules',rule);state.rules.push(rule);
+    // Migrate previous filename-based guesses. Keep decisions confirmed by users.
+    for(const photo of state.photos){
+      if(photo.confirmed||photo.manualCategory||photo.reason==='Categoria ajustada manualmente')continue;
+      if(photo.visionVersion!==VISION_VERSION){
+        photo.category='pendente';photo.reason='Aguardando análise do conteúdo da imagem';
+        photo.visionVersion=null;photo.suggestedCategory=null;
+        await dbPut('photos',photo);
       }
-      localStorage.setItem('foteka-rules-initialized','1');
     }
     if(navigator.storage?.estimate)state.storage=await navigator.storage.estimate().catch(()=>null);
     setupEvents();render();registerServiceWorker();
@@ -94,17 +88,9 @@ function revokeUrls(id){
     if(urls.has(key)){URL.revokeObjectURL(urls.get(key));urls.delete(key)}
   }
 }
-function classify(filename){
-  const text=filename.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  for(const rule of state.rules){
-    const word=rule.keyword.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    if(word && text.includes(word))return {category:rule.category,reason:`Palavra-chave: ${rule.keyword}`};
-  }
-  // Generic iPhone camera file names have no semantic information.
-  if(/^(img|dsc|pxl|photo|image)[-_ ]?(\d{3,}|\.(heic|heif|jpeg|jpg|png))/i.test(filename)){
-    return {category:'pessoal',reason:'Foto da câmera — provisória, precisa de IA visual'};
-  }
-  return {category:'outros',reason:'Análise visual pendente'};
+function classify(){
+  // Automated photo filenames (IMG_1234.HEIC) contain no visual semantics.
+  return {category:'pendente',reason:'Aguardando análise do conteúdo da imagem'};
 }
 function buildThumbnail(blob){
   return new Promise((resolve,reject)=>{
@@ -137,7 +123,7 @@ async function importFiles(fileList){
     const fingerprint=`${file.name}:${file.size}:${file.lastModified}`;
     if(seen.has(fingerprint)){skipped++;continue}
     try{
-      const {category,reason}=classify(file.name);
+      const {category,reason}=classify();
       const thumbnail=await buildThumbnail(file).catch(()=>null);
       const item={
         id:crypto.randomUUID?crypto.randomUUID():`p-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -151,7 +137,7 @@ async function importFiles(fileList){
   }
   state.processing=false;state.tab='galeria';state.filter='all';state.search='';render();
   toast(`${added} imagem(ns) importada(s)${skipped?` · ${skipped} ignorada(s)`:''}`);
-  if(added && localStorage.getItem('foteka-vision-consent')==='1')void startVisualAnalysis(true);
+  if(added)void startVisualAnalysis(localStorage.getItem('foteka-vision-consent')==='1');
 }
 function navMarkup(mobile=false){
   return `<div class="${mobile?'bottom-items':'nav-list'}">${TABS.map(([id,label,symbol])=>`<button type="button" class="${mobile?'bottom-item':'nav-item'} ${state.tab===id?'active':''}" data-tab="${id}" aria-current="${state.tab===id?'page':'false'}">${icon(symbol)}<span>${label}</span>${id==='revisao'&&pending().length?`<span class="${mobile?'badge-dot':'count'}">${pending().length}</span>`:''}</button>`).join('')}</div>`;
@@ -221,20 +207,18 @@ async function startVisualAnalysis(automatic=false){
       if(photo.confirmed||photo.manualCategory){state.visionDone++;continue}
       try{
         const result=await classifyImageVisual(photo.thumbnail||photo.blob);
-        const currentRule=classify(photo.name);
-        const ruleMatched=currentRule.reason.startsWith('Palavra-chave:');
         const old=photo.category;
-        if(result.reliable&&(!ruleMatched||result.score>0.42))photo.category=result.category;
-        photo.reason=result.reliable?
-          (ruleMatched&&old===photo.category?`${currentRule.reason} · IA conferida`:result.reason):
-          (photo.category==='outros'?'IA incerta — escolha a categoria':'IA visual incerta — confirme a categoria');
+        photo.category=result.reliable?result.category:'pendente';
+        photo.suggestedCategory=result.category;
+        photo.reason=result.reliable?'IA visual local · sugestão a confirmar':
+          'IA visual incerta · escolha uma categoria na Revisão';
         photo.visionVersion=VISION_VERSION;
         photo.visualScore=Math.round(result.score*1000)/1000;
         if(old!==photo.category)changed++;
         await dbPut('photos',photo);
       }catch(error){
         console.warn('Foteka: unreadable image',photo.name,error);errors++;
-        photo.visionVersion=VISION_VERSION;
+        photo.visionVersion=null;photo.category='pendente';
         photo.reason='Imagem não analisada pela IA — revise manualmente';
         await dbPut('photos',photo);
       }
@@ -265,7 +249,7 @@ function galleryView(){
   <section class="stats-row" aria-label="Resumo da biblioteca">
     <div class="stat"><div class="stat-icon">${icon('image')}</div><div class="stat-copy"><strong>${photoCount()}</strong><small>Imagens</small></div></div>
     <div class="stat"><div class="stat-icon">${icon('review')}</div><div class="stat-copy"><strong>${pending().length}</strong><small>Revisar</small></div></div>
-    <div class="stat"><div class="stat-icon">${icon('folder')}</div><div class="stat-copy"><strong>${CATEGORIES.filter(c=>count(c.id)).length}</strong><small>Coleções ativas</small></div></div>
+    <div class="stat"><div class="stat-icon">${icon('folder')}</div><div class="stat-copy"><strong>${CATEGORIES.filter(c=>c.id!=='pendente'&&count(c.id)).length}</strong><small>Coleções ativas</small></div></div>
   </section>
   <div class="section-heading"><h2>Suas coleções</h2><span class="hint">Organizadas por assunto</span></div>
   <section class="collections">${CATEGORIES.map(collectionCard).join('')}</section>
@@ -280,27 +264,33 @@ function categoryOptions(active){
 function reviewView(){
   const items=pending();
   return `${pageHeader('Organização local','Revisão','Confirme ou ajuste as sugestões antes de considerar as imagens organizadas.')}${visualBanner()}${items.length?`
-  <div class="privacy-strip" style="margin-bottom:20px">${icon('sparkle')}<span>As categorias combinam regras por nome e IA visual local, quando ativada. Confira as sugestões antes de confirmar.</span></div>
+  <div class="privacy-strip" style="margin-bottom:20px">${icon('sparkle')}<span>Categorias vêm apenas da análise dos pixels, nunca do nome automático. Imagens incertas ficam aguardando sua escolha.</span></div>
   <div class="review-grid">${items.map(p=>`<article class="review-card">
     <div class="review-media"><img loading="lazy" src="${urlFor(p)}" alt="${esc(p.name)}"></div>
     <div class="review-body"><h3 title="${esc(p.name)}">${esc(p.name)}</h3><small>${esc(p.reason)}</small>
+    ${p.suggestedCategory&&p.category==='pendente'?`<p class="vision-help">Possível: ${esc(cat(p.suggestedCategory).name)} · confira antes de escolher.</p>`:''}
     <label class="form-label" for="cat-${esc(p.id)}">Categoria</label>
     <select id="cat-${esc(p.id)}" class="select" data-select-category="${esc(p.id)}">${categoryOptions(p.category)}</select>
-    <div class="review-actions"><button type="button" class="button" data-action="detail" data-id="${esc(p.id)}">Visualizar</button><button type="button" class="button primary" data-action="confirm" data-id="${esc(p.id)}">${icon('check')} Confirmar</button></div>
+    <div class="review-actions"><button type="button" class="button" data-action="detail" data-id="${esc(p.id)}">Visualizar</button><button type="button" class="button primary" data-action="confirm" data-id="${esc(p.id)}" ${p.category==='pendente'?'disabled title="Selecione uma categoria"':''}>${icon('check')} Confirmar</button></div>
     </div></article>`).join('')}</div>`:
     `<div class="empty"><div class="empty-icon">${icon('check')}</div><h3>Tudo revisado</h3><p>Quando novas imagens forem importadas, as sugestões aparecerão aqui para conferência.</p><button type="button" class="button primary" data-action="import">${icon('plus')} Adicionar imagens</button></div>`}`;
 }
 function rulesView(){
-  return `${pageHeader('Personalização','Regras','Ensine ao Foteka como reconhecer categorias pelo nome dos arquivos.')}
-  <section class="panel"><h3>Criar regra</h3><p>Ao importar uma imagem, o Foteka procura essas palavras-chave no nome do arquivo. As alterações valem para novos arquivos, ou para imagens pendentes quando você reclassificar.</p>
-    <form id="new-rule" class="rule-form">
-      <div class="rule-input"><label class="form-label" for="rule-keyword">Palavra-chave</label><input class="field" id="rule-keyword" name="keyword" required minlength="2" maxlength="60" autocomplete="off" placeholder="Ex.: viagem, pikachu"></div>
-      <div><label class="form-label" for="rule-category">Coleção</label><select id="rule-category" name="category" class="select">${categoryOptions('pessoal')}</select></div>
-      <button class="button primary" type="submit">${icon('plus')} Criar</button>
-    </form>
+  const needs=pendingVisual().length;
+  const uncertain=state.photos.filter(p=>!p.confirmed&&p.category==='pendente'&&p.visionVersion===VISION_VERSION).length;
+  const ready=state.photos.filter(p=>p.visionVersion===VISION_VERSION&&p.category!=='pendente').length;
+  return `${pageHeader('Organização inteligente','IA visual','As fotos são classificadas pelo conteúdo, não por nomes como IMG_1234.HEIC.')}
+  ${visualBanner()}
+  <section class="panel"><h3>Reconhecimento de conteúdo</h3>
+  <p>O Foteka compara o que aparece na foto com exemplos visuais de pessoas, documentos, cartas Pokémon, projetos, compras e capturas de tela. O modelo é executado no próprio navegador e os resultados precisam ser conferidos.</p>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-copy"><strong>${needs}</strong><small>A analisar</small></div></div>
+    <div class="stat"><div class="stat-copy"><strong>${ready}</strong><small>Sugestões da IA</small></div></div>
+    <div class="stat"><div class="stat-copy"><strong>${uncertain}</strong><small>Incertas</small></div></div>
+  </div>
+  <button class="button primary" type="button" data-action="reclassify" ${state.visionBusy?'disabled':''}>${icon('sparkle')} Reanalisar imagens não confirmadas</button>
   </section>
-  <div class="section-heading"><h2>Regras ativas</h2><button class="text-link" data-action="reclassify" type="button">Aplicar às pendentes ${icon('arrow')}</button></div>
-  <div class="rule-list">${state.rules.map(r=>`<div class="rule-row"><div class="rule-word">${esc(r.keyword)}</div><span class="rule-category">${esc(cat(r.category).name)}</span><button class="icon-btn" data-action="remove-rule" data-id="${esc(r.id)}" aria-label="Excluir regra ${esc(r.keyword)}">${icon('trash')}</button></div>`).join('')}</div>`;
+  <div class="privacy-strip">${icon('lock')}<span>Na primeira análise, um modelo é baixado. As fotos não são enviadas a servidor. Categorias confirmadas ou escolhidas manualmente não são substituídas.</span></div>`;
 }
 function settingsView(){
   const inStandalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
@@ -317,7 +307,7 @@ function settingsView(){
   <section class="panel">
     <h3>Biblioteca e privacidade</h3>
     <div class="setting-row"><span class="setting-icon">${icon('image')}</span><div><h3>Importar fotografias</h3><p>Selecione fotos ou imagens salvas no iPhone.</p></div><button class="button" data-action="import" type="button">Importar</button></div>
-    <div class="setting-row"><span class="setting-icon">${icon('download')}</span><div><h3>Exportar índice</h3><p>Baixa um JSON com nomes, regras e categorias, sem cópia das fotos.</p></div><button class="button" data-action="export" type="button">Exportar</button></div>
+    <div class="setting-row"><span class="setting-icon">${icon('download')}</span><div><h3>Exportar índice</h3><p>Baixa um JSON com nomes e categorias, sem cópia das fotos.</p></div><button class="button" data-action="export" type="button">Exportar</button></div>
     <div class="setting-row"><span class="setting-icon">${icon('folder')}</span><div><h3>Armazenamento</h3><p>${esc(storageText)}. O Safari pode apagar dados locais se faltar espaço.</p></div><button class="button" data-action="persist" type="button">Proteger</button></div>
     <div class="setting-row"><span class="setting-icon">${icon('trash')}</span><div><h3>Apagar biblioteca web</h3><p>Remove deste navegador as cópias importadas. Não exclui as fotos originais do iPhone.</p></div><button class="button danger" data-action="clear" type="button">Limpar</button></div>
   </section>
@@ -325,7 +315,7 @@ function settingsView(){
     <p>${inStandalone?'O Foteka já está aberto como aplicativo da Tela de Início.':'No Safari do iPhone: toque no botão Compartilhar → Adicionar à Tela de Início → Adicionar. A primeira abertura precisa de conexão; depois a interface pode funcionar offline.'}</p>
     <div class="privacy-strip">${icon('phone')}<span>Não precisa de AltStore, conta de desenvolvedor nem assinatura Apple. Esta versão web não substitui a instalação do Foteka nativo em SwiftUI.</span></div>
   </section>
-  <p class="note">Versão web 1.0 · Visual Collections V2. Após ativação, o modelo visual analisa as fotos no navegador. Não há leitura da Fototeca inteira, OCR ou sincronização com iCloud; resultados são sugestões. Para preservar imagens, mantenha os arquivos originais no Fotos ou Arquivos.</p>`;
+  <p class="note">Versão web 1.1 · Visual Collections V2. Após ativação, o modelo visual analisa as fotos no navegador. Não há leitura da Fototeca inteira, OCR ou sincronização com iCloud; resultados são sugestões. Para preservar imagens, mantenha os arquivos originais no Fotos ou Arquivos.</p>`;
 }
 function renderDetail(photo){
   if(!photo)return;
@@ -337,7 +327,7 @@ function renderDetail(photo){
     <span class="detail-meta">Importada em ${dateFmt(photo.importedAt)} · ${fmtBytes(photo.size)}<br>${esc(photo.reason||'Categoria ajustada manualmente')}</span>
     <label class="form-label" for="detail-category">Coleção atual</label>
     <select class="select" id="detail-category" data-select-category="${esc(photo.id)}">${categoryOptions(photo.category)}</select>
-    <span class="detail-meta">${photo.confirmed?'Categoria confirmada':'Aguardando sua confirmação'}</span>
+    <span class="detail-meta">${photo.confirmed?'Categoria confirmada':photo.category==='pendente'?'Escolha uma categoria acima':'Aguardando sua confirmação'}</span>
     <div class="detail-actions"><button class="button primary" data-action="confirm" data-id="${esc(photo.id)}">${icon('check')} Confirmar</button><button class="button" data-action="download" data-id="${esc(photo.id)}">${icon('download')} Original</button><button class="button danger" data-action="delete" data-id="${esc(photo.id)}">${icon('trash')} Apagar cópia</button></div>
     </div></div>`;
   if(!dialog.open)dialog.showModal();
@@ -354,13 +344,14 @@ function toast(message){
 async function saveCategory(id,category){
   const photo=state.photos.find(p=>p.id===id);
   if(!photo||!CATEGORIES.some(c=>c.id===category))return;
-  photo.category=category;photo.confirmed=false;photo.manualCategory=true;photo.reason='Categoria ajustada manualmente';
+  photo.category=category;photo.confirmed=false;photo.manualCategory=category!=='pendente';photo.suggestedCategory=null;photo.reason=category==='pendente'?'Aguardando decisão':'Categoria ajustada manualmente';
   await dbPut('photos',photo);
   render();
   if(el('photo-dialog').open)renderDetail(photo);
 }
 async function confirmPhoto(id){
   const p=state.photos.find(p=>p.id===id);if(!p)return;
+  if(p.category==='pendente'){toast('Escolha uma categoria antes de confirmar');return}
   p.confirmed=true;await dbPut('photos',p);if(el('photo-dialog').open)closeDetail();render();toast('Categoria confirmada');
 }
 async function deletePhoto(id){
@@ -380,8 +371,7 @@ function exportIndex(){
   const data={
     application:'Foteka Web',version:1,exportedAt:new Date().toISOString(),
     reminder:'Metadados apenas; este arquivo não contém fotos',
-    photos:state.photos.map(({name,category,confirmed,importedAt,reason,size})=>({name,category,confirmed,importedAt,reason,size})),
-    rules:state.rules.map(({keyword,category})=>({keyword,category}))
+    photos:state.photos.map(({name,category,confirmed,importedAt,reason,size})=>({name,category,confirmed,importedAt,reason,size}))
   };
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const u=URL.createObjectURL(blob);
@@ -389,13 +379,13 @@ function exportIndex(){
   setTimeout(()=>URL.revokeObjectURL(u),10_000);toast('Índice exportado, sem fotografias');
 }
 async function reclassifyPending(){
-  let changed=0;
-  for(const p of pending()){
-    if(p.manualCategory||p.reason==='Categoria ajustada manualmente')continue;
-    const next=classify(p.name);
-    if(p.category!==next.category||p.reason!==next.reason){p.category=next.category;p.reason=next.reason;p.visionVersion=null;await dbPut('photos',p);changed++}
+  for(const photo of state.photos){
+    if(photo.confirmed||photo.manualCategory||photo.reason==='Categoria ajustada manualmente')continue;
+    photo.category='pendente';photo.reason='Aguardando nova análise visual';
+    photo.visionVersion=null;photo.suggestedCategory=null;
+    await dbPut('photos',photo);
   }
-  render();toast(`Sugestões atualizadas: ${changed}`);
+  render();await startVisualAnalysis(false);
 }
 function setupEvents(){
   el('file-input').addEventListener('change',async e=>{
@@ -430,11 +420,6 @@ function setupEvents(){
           break;
         case 'reclassify':await reclassifyPending();break;
         case 'visual-classify':await startVisualAnalysis(false);break;
-        case 'remove-rule':
-          if(confirm('Excluir esta regra de classificação?')){
-            await dbDelete('rules',id);state.rules=state.rules.filter(x=>x.id!==id);render();toast('Regra removida');
-          }
-          break;
       }
     }catch(error){console.error(error);toast(`Não foi possível concluir: ${error.message}`)}
   });
@@ -449,18 +434,6 @@ function setupEvents(){
     if(e.target.id!=='photo-search')return;
     state.search=e.target.value;
     const list=el('gallery-results');if(list)list.innerHTML=photoGallery();
-  });
-  document.addEventListener('submit',async e=>{
-    if(e.target.id!=='new-rule')return;
-    e.preventDefault();
-    const data=new FormData(e.target);
-    const keyword=String(data.get('keyword')||'').trim().toLowerCase();
-    const category=String(data.get('category')||'');
-    if(keyword.length<2||!CATEGORIES.some(x=>x.id===category)){toast('Informe uma regra válida');return}
-    if(state.rules.some(x=>x.keyword===keyword)){toast('Essa palavra-chave já existe');return}
-    const rule={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),keyword,category,builtin:false};
-    try{await dbPut('rules',rule);state.rules.unshift(rule);render();toast('Regra adicionada')}
-    catch(error){toast(`Falha ao salvar regra: ${error.message}`)}
   });
   el('photo-dialog').addEventListener('click',e=>{
     if(e.target===el('photo-dialog'))closeDetail();
