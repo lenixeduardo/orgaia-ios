@@ -6,6 +6,16 @@ SwiftUI + PhotoKit + Vision (OCR/classificação) + Share Extension + App Intent
 
 > **Status:** O núcleo Swift, o build para simulador e XCTest passaram no GitHub Actions. O build para iPhone físico sem assinatura é gerado pelo workflow [Foteka — iPhone device IPA](.github/workflows/ios-device-ipa.yml); a instalação exige assinatura para o dispositivo. Consulte [guia de instalação gratuita](Docs/INSTALL_IPHONE_FREE.md).
 
+## Foteka Web — disponível no iPhone sem Mac
+
+**Acesse:** https://foteka-web.vercel.app
+
+A versão [Web / PWA](web/README.md) pode ser aberta no Safari e adicionada à Tela de Início sem AltStore nem assinatura Apple Developer. Ela tem Galeria Visual Collections V2, importação manual de imagens, armazenamento local no navegador (IndexedDB), revisão e regras por palavra-chave, e funciona parcialmente offline após a primeira visita.
+
+**Limite importante:** a PWA não obtém acesso global à Fototeca e não cria álbuns no app Fotos. A classificação web atual é por regras, **não por IA visual**, e não sincroniza com a edição nativa. Mantenha as fotos originais no iPhone; dados do navegador podem ser apagados.
+
+---
+
 ## Obter o projeto
 
 Repositório: **[lenixeduardo/orgaia-ios](https://github.com/lenixeduardo/orgaia-ios)**. A visibilidade é definida pelo proprietário no GitHub.
