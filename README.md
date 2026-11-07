@@ -8,6 +8,8 @@ SwiftUI + PhotoKit + Vision (OCR/classificação) + Share Extension + App Intent
 
 ## Foteka Web — disponível no iPhone sem Mac
 
+**Atualização da classificação (novembro de 2026):** a versão web deixou de inferir categorias a partir de nomes como `IMG_1234.HEIC`. Fotos não analisadas ficam em **Aguardando análise** e só recebem sugestões com o modelo visual executado no navegador (após consentimento) ou por escolha manual. Fotos antigas não confirmadas são migradas para esse estado; seleções confirmadas permanecem preservadas. [Detalhes e limitações](web/README.md).
+
 **Acesse:** https://foteka-web.vercel.app
 
 A versão [Web / PWA](web/README.md) pode ser aberta no Safari e adicionada à Tela de Início sem AltStore nem assinatura Apple Developer. Ela tem Galeria Visual Collections V2, importação manual de imagens, armazenamento local no navegador (IndexedDB), revisão e regras por palavra-chave, e funciona parcialmente offline após a primeira visita.

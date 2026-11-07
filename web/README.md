@@ -9,7 +9,7 @@ A versão PWA do Foteka funciona no Safari e pode ser adicionada à Tela de Iní
 - Importação manual de imagens pelo seletor de arquivos e Fototeca do Safari.
 - Galeria Visual Collections com mosaicos, miniaturas reais, busca e coleções.
 - Revisão de cada imagem, com casos incertos separados da categoria Outros.
-- **IA visual opcional no próprio navegador**, com MobileCLIP S0 via Transformers.js para sugerir categorias analisando os pixels. Primeiro uso baixa um modelo; no iPhone pode consumir dezenas de MB e memória. Se o modelo falhar, classificação por regras e revisão manual continuam disponíveis.
+- **IA visual opcional no próprio navegador**, com MobileCLIP S0 via Transformers.js para sugerir categorias analisando os pixels. Primeiro uso baixa um modelo; no iPhone pode consumir dezenas de MB e memória. Se o modelo falhar, as fotos permanecem aguardando análise e podem ser categorizadas manualmente.
 - A classificação automática não usa nomes. Fotos aguardam análise visual até o modelo ou uma pessoa classificá-las.
 - Armazenamento IndexedDB **no próprio navegador** de arquivos e miniaturas.
 - Download individual do original importado, exclusão de cópias, exportação dos metadados (JSON), tentativa de armazenamento persistente.
@@ -32,7 +32,7 @@ A versão PWA do Foteka funciona no Safari e pode ser adicionada à Tela de Iní
 2. No Safari, toque em Compartilhar → **Adicionar à Tela de Início** (no iOS algumas versões mostram o item em um menu de opções).
 3. Confirme **Adicionar**. Abra **Foteka** pelo ícone na Tela de Início.
 4. Toque em **Adicionar fotos**, escolha imagens. Na Galeria, toque em **Classificar com IA** para analisar as fotos já importadas.
-5. Autorize o download do modelo na primeira execução, preferencialmente via Wi-Fi. Depois disso, novos uploads são analisados automaticamente enquanto o navegador e o modelo estiverem disponíveis. Confirme os resultados em **Revisão**.
+5. Autorize o download do modelo na primeira execução, preferencialmente via Wi-Fi. Depois disso, novas importações iniciam a análise visual enquanto o navegador e o modelo estiverem disponíveis. Confirme os resultados em **Revisão**.
 
 ## Organização
 
@@ -40,7 +40,7 @@ Não há dependências de runtime nem coleta de dados. Os arquivos estáticos s�
 
 - `index.html`: marca, navegação e ícones SVG inline;
 - `styles.css`: layout responsivo;
-- `app.js`: importação, IndexedDB, regras e UI;
+- `app.js`: importação, IndexedDB, fluxo de IA visual, revisão e interface;
 - `vision.js`: carregamento sob demanda de modelo de IA visual e classificação local;
 - `manifest.webmanifest`: instalação PWA;
 - `sw.js`: cache offline do shell;
