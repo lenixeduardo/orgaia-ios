@@ -64,11 +64,12 @@ async function initialize(){
     db=await openDatabase();
     state.photos=(await dbAll('photos')).sort((a,b)=>b.importedAt-a.importedAt);
     state.rules=await dbAll('rules');
-    if(!state.rules.length){
+    if(!state.rules.length && localStorage.getItem('foteka-rules-initialized')!=='1'){
       for(const [keyword,category] of START_RULES){
         const rule={id:'builtin-'+keyword,keyword,category,builtin:true};
         await dbPut('rules',rule);state.rules.push(rule);
       }
+      localStorage.setItem('foteka-rules-initialized','1');
     }
     if(navigator.storage?.estimate)state.storage=await navigator.storage.estimate().catch(()=>null);
     setupEvents();render();registerServiceWorker();

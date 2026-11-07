@@ -1,0 +1,22 @@
+name: Foteka Web — static PWA checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/web-validate.yml'
+  pull_request:
+    paths:
+      - 'web/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript syntax
+        run: node --check web/app.js && node --check web/sw.js
+      - name: Run Foteka web smoke tests
+        run: node --test web/tests/web-smoke.test.mjs
